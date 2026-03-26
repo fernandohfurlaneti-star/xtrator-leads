@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extrator de Leads</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .campo {
+            margin-bottom: 10px;
+        }
+        input, button {
+            padding: 8px;
+            font-size: 14px;
+        }
+        input {
+            width: 250px;
+            margin-right: 10px;
+        }
+        button {
+            background-color: #0070f3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            padding: 8px 15px;
+        }
+        button:hover {
+            background-color: #0051b3;
+        }
+        .cards {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        .card {
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 8px;
+            width: 250px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .loading {
+            color: #0070f3;
+            margin-top: 10px;
+        }
+        .erro {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Extrator de Leads</h1>
+    
+    <div>
+        <div class="campo">
+            <input type="text" id="apiKey" placeholder="Sua API Key do Google" style="width: 400px;">
+        </div>
+        <div class="campo">
+            <input type="text" id="nicho" placeholder="Nicho (ex: restaurante, mecânico)">
+            <input type="text" id="cidade" placeholder="Cidade (ex: São Paulo)">
+            <button id="buscarBtn">Buscar</button>
+            <button id="exportarBtn" style="display:none;">Exportar CSV</button>
+        </div>
+    </div>
+
+    <div id="cards" class="cards"></div>
+    <div id="tabela"></div>
+    <div id="mensagem"></div>
+
+    <script>
+        let leadsAtuais = [];
+
+        document.getElementById('buscarBtn').onclick = async function() {
+            const apiKey = document.getElementById('apiKey').value;
+            const nicho = document.getElementById('nicho').value;
+            const cidade = document.getElementById('cidade').value;
+
+            if (!apiKey || !nicho || !cidade) {
+                alert('Preencha todos os campos!');
+                return;
+            }
+
+            document.getElementById('mensagem').innerHTML = '<div class="loading">Buscando leads... Aguarde</div>';
+            document.getElementById('buscarBtn').disabled = true;
+
+            try {
+                const resposta = await fetch('/api/google-leads', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ apiKey, nicho, cidade })
+                });
+
+                const dados = await resposta.json();
+
+                if (!resposta.ok) {
+                    throw new Error(dados.error || 'Erro na busca');
+                }
+
+                leadsAtuais = dados;
+                mostrarResultados(dados);
+                document.getElementById('exportarBtn').style.display = 'inline-block';
+                document.getElementById('mensagem').innerHTML = '<div class="loading">✅ Encontrados ' + dados.length + ' leads!</div>';
+            } catch (erro) {
+                document.getElementById('mensagem').innerHTML = '<div class="erro">❌ Erro: ' + erro.message + '</div>';
+                console.error(erro);
+            } finally {
+                document.getElementById('buscarBtn').disabled = false;
+            }
+        };
+
+        document.getElementById('exportarBtn').onclick = function() {
+            if (leadsAtuais.length === 0) return;
+            
+            let csv = "Nome,Endereço,Avaliação,Total Avaliações\n";
+            for (let lead of leadsAtuais) {
+                csv += `"${lead.name}","${lead.address}",${lead.rating},${lead.total_ratings}\n`;
+            }
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'leads.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+
+        function mostrarResultados(leads) {
+            const cardsDiv = document.getElementById('cards');
+            cardsDiv.innerHTML = '';
+            for (let i = 0; i < Math.min(leads.length, 6); i++) {
+                const lead = leads[i];
+                cardsDiv.innerHTML += `
+                    <div class="card">
+                        <strong>${lead.name}</strong><br>
+                        ${lead.address}<br>
+                        ⭐ ${lead.rating} (${lead.total_ratings} avaliações)
+                    </div>
+                `;
+            }
+
+            let tabelaHtml = '<table><thead><tr><th>Nome</th><th>Endereço</th><th>Avaliação</th><th>Total Avaliações</th></tr></thead><tbody>';
+            for (let lead of leads) {
+                tabelaHtml += `<tr>
+                    <td>${lead.name}</td>
+                    <td>${lead.address}</td>
+                    <td>${lead.rating}</td>
+                    <td>${lead.total_ratings}</td>
+                </tr>`;
+            }
+            tabelaHtml += '</tbody></table>';
+            document.getElementById('tabela').innerHTML = tabelaHtml;
+        }
+    </script>
+</body>
+</html>
