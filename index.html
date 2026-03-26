@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Extrator de Leads</title>
+    <title>Extrator de Leads - Grátis</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -66,18 +66,26 @@
             color: red;
             margin-top: 10px;
         }
+        .gratis {
+            background-color: #e8f5e9;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            color: #2e7d32;
+        }
     </style>
 </head>
 <body>
     <h1>Extrator de Leads</h1>
     
+    <div class="gratis">
+        ✅ 100% GRÁTIS - Sem cartão, sem cadastro, sem API key!
+    </div>
+    
     <div>
         <div class="campo">
-            <input type="text" id="apiKey" placeholder="Sua API Key do Google" style="width: 400px;">
-        </div>
-        <div class="campo">
-            <input type="text" id="nicho" placeholder="Nicho (ex: restaurante, mecânico)">
-            <input type="text" id="cidade" placeholder="Cidade (ex: São Paulo)">
+            <input type="text" id="nicho" placeholder="Nicho (ex: restaurante, mecânico, padaria)" style="width: 300px;">
+            <input type="text" id="cidade" placeholder="Cidade (ex: São Paulo, Rio de Janeiro)">
             <button id="buscarBtn">Buscar</button>
             <button id="exportarBtn" style="display:none;">Exportar CSV</button>
         </div>
@@ -91,23 +99,22 @@
         let leadsAtuais = [];
 
         document.getElementById('buscarBtn').onclick = async function() {
-            const apiKey = document.getElementById('apiKey').value;
             const nicho = document.getElementById('nicho').value;
             const cidade = document.getElementById('cidade').value;
 
-            if (!apiKey || !nicho || !cidade) {
-                alert('Preencha todos os campos!');
+            if (!nicho || !cidade) {
+                alert('Preencha nicho e cidade!');
                 return;
             }
 
-            document.getElementById('mensagem').innerHTML = '<div class="loading">Buscando leads... Aguarde</div>';
+            document.getElementById('mensagem').innerHTML = '<div class="loading">🔍 Buscando leads... Aguarde</div>';
             document.getElementById('buscarBtn').disabled = true;
 
             try {
                 const resposta = await fetch('/api/google-leads', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ apiKey, nicho, cidade })
+                    body: JSON.stringify({ nicho, cidade })
                 });
 
                 const dados = await resposta.json();
@@ -119,10 +126,14 @@
                 leadsAtuais = dados;
                 mostrarResultados(dados);
                 document.getElementById('exportarBtn').style.display = 'inline-block';
-                document.getElementById('mensagem').innerHTML = '<div class="loading">✅ Encontrados ' + dados.length + ' leads!</div>';
+                
+                if (dados.length === 0) {
+                    document.getElementById('mensagem').innerHTML = '<div class="erro">⚠️ Nenhum lead encontrado. Tente outro nicho ou cidade.</div>';
+                } else {
+                    document.getElementById('mensagem').innerHTML = '<div class="loading">✅ Encontrados ' + dados.length + ' leads!</div>';
+                }
             } catch (erro) {
                 document.getElementById('mensagem').innerHTML = '<div class="erro">❌ Erro: ' + erro.message + '</div>';
-                console.error(erro);
             } finally {
                 document.getElementById('buscarBtn').disabled = false;
             }
@@ -131,9 +142,9 @@
         document.getElementById('exportarBtn').onclick = function() {
             if (leadsAtuais.length === 0) return;
             
-            let csv = "Nome,Endereço,Avaliação,Total Avaliações\n";
+            let csv = "Nome,Endereço,Avaliação,Tipo\n";
             for (let lead of leadsAtuais) {
-                csv += `"${lead.name}","${lead.address}",${lead.rating},${lead.total_ratings}\n`;
+                csv += `"${lead.name}","${lead.address}",${lead.rating},${lead.tipo}\n`;
             }
             
             const blob = new Blob([csv], { type: 'text/csv' });
@@ -146,6 +157,7 @@
         };
 
         function mostrarResultados(leads) {
+            // Cards
             const cardsDiv = document.getElementById('cards');
             cardsDiv.innerHTML = '';
             for (let i = 0; i < Math.min(leads.length, 6); i++) {
@@ -154,19 +166,19 @@
                     <div class="card">
                         <strong>${lead.name}</strong><br>
                         ${lead.address}<br>
-                        ⭐ ${lead.rating} (${lead.total_ratings} avaliações)
+                        📍 ${lead.tipo}
                     </div>
                 `;
             }
 
-            let tabelaHtml = '<table><thead><tr><th>Nome</th><th>Endereço</th><th>Avaliação</th><th>Total Avaliações</th></tr></thead><tbody>';
+            // Tabela
+            let tabelaHtml = '<table><thead><tr><th>Nome</th><th>Endereço</th><th>Tipo</th></tr></thead><tbody>';
             for (let lead of leads) {
-                tabelaHtml += `<tr>
+                tabelaHtml += ` suffered
                     <td>${lead.name}</td>
                     <td>${lead.address}</td>
-                    <td>${lead.rating}</td>
-                    <td>${lead.total_ratings}</td>
-                </tr>`;
+                    <td>${lead.tipo}</td>
+                 </tr>`;
             }
             tabelaHtml += '</tbody></table>';
             document.getElementById('tabela').innerHTML = tabelaHtml;
